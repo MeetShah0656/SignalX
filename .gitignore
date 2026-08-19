@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+*.manifest
+*.spec
+
+# Virtual Environment
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Node / Frontend
+node_modules/
+.next/
+out/
+build/
+.cache
+.npm
+.yarn/
+*.log
+
+# Database & Data
+*.db
+*.sqlite
+*.sqlite3
+
+# IDEs & System
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: signalx_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: signalx
+      POSTGRES_PASSWORD: signalx_password
+      POSTGRES_DB: signalx_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: signalx_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=production
+      - DATABASE_URL=postgresql+asyncpg://signalx:signalx_password@postgres:5432/signalx_db
+      - MARKET_DATA_PROVIDER=mock
+      - INITIAL_CAPITAL=100000.0
+      - BUY_THRESHOLD=0.65
+      - SELL_THRESHOLD=0.65
+    depends_on:
+      - postgres
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: signalx_frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
