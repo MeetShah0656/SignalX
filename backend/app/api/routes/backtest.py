@@ -6,17 +6,11 @@ import datetime
 import uuid
 from app.database.database import get_db
 from app.database.models import BacktestRun
-from app.market.live_provider import LiveMarketDataProvider
-from app.market.mock_provider import MockMarketDataProvider
+from app.market.factory import get_market_provider
 from app.backtesting.engine import BacktestEngine
 from app.core.config import settings
 
 router = APIRouter(prefix="/api/backtest", tags=["Backtesting"])
-
-def get_provider():
-    if settings.MARKET_DATA_PROVIDER == "live" or settings.MARKET_DATA_PROVIDER == "yfinance":
-        return LiveMarketDataProvider(settings.SYMBOL)
-    return MockMarketDataProvider()
 
 @router.post("")
 async def run_backtest(
@@ -30,7 +24,7 @@ async def run_backtest(
     stop_loss_pct = float(payload.get("stop_loss_pct", 0.005))
     target_pct = float(payload.get("target_pct", 0.010))
 
-    provider = get_provider()
+    provider = get_market_provider()
     candles = await provider.get_historical_candles("NIFTY 50", timeframe=timeframe, limit=500)
 
     if len(candles) < 30:

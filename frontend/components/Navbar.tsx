@@ -48,9 +48,15 @@ export const Navbar: React.FC<NavbarProps> = ({
           <span>Zero Real Money Execution • Strictly Paper Trading</span>
         </div>
         <div className="flex items-center space-x-4">
+          <span className="flex items-center space-x-1.5 font-bold">
+            <span className={`w-2 h-2 rounded-full ${systemStatus?.market_calendar?.is_open ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'}`} />
+            <span className={systemStatus?.market_calendar?.is_open ? 'text-emerald-400' : 'text-amber-400'}>
+              {systemStatus?.market_calendar?.is_open ? 'NSE LIVE (09:15 - 15:30 IST)' : `NSE ${systemStatus?.market_calendar?.status || 'CLOSED'}`}
+            </span>
+          </span>
           <span className="flex items-center space-x-1.5">
             <span className={`w-2 h-2 rounded-full ${systemStatus?.market_api === 'CONNECTED' ? 'bg-emerald-400' : 'bg-red-400'}`} />
-            <span>{systemStatus?.market_api === 'CONNECTED' ? 'LIVE DATA CONNECTED' : 'DATA DISCONNECTED'}</span>
+            <span>{systemStatus?.market_api === 'CONNECTED' ? 'DATA CONNECTED' : 'DISCONNECTED'}</span>
           </span>
           <span className="flex items-center space-x-1.5">
             <span className={`w-2 h-2 rounded-full ${systemStatus?.ml_model === 'READY' ? 'bg-emerald-400' : 'bg-amber-400'}`} />

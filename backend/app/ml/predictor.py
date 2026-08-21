@@ -48,8 +48,11 @@ class Predictor:
                 "message": "Model not trained. Run training pipeline before enabling AI predictions."
             }
 
-        # Prepare feature vector matching training schema
-        df_row = pd.DataFrame([feature_row])[FEATURE_COLUMNS].fillna(0.0)
+        # Prepare feature vector matching the model's trained schema
+        model_features = getattr(model, "feature_names_in_", None)
+        if model_features is None or len(model_features) == 0:
+            model_features = metadata.get("feature_columns", FEATURE_COLUMNS)
+        df_row = pd.DataFrame([feature_row]).reindex(columns=list(model_features), fill_value=0.0)
 
         probs = model.predict_proba(df_row)[0]
         classes = list(model.classes_)

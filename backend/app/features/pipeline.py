@@ -10,7 +10,8 @@ from app.features.technical import (
     calculate_macd,
     calculate_atr,
     calculate_bollinger_bands,
-    calculate_volume_features
+    calculate_volume_features,
+    calculate_anti_trap_features
 )
 
 FEATURE_COLUMNS = [
@@ -19,7 +20,9 @@ FEATURE_COLUMNS = [
     'ema_9', 'ema_20', 'ema_50', 'sma_20', 'sma_50',
     'rsi_14', 'macd', 'macd_signal', 'macd_hist',
     'atr_14', 'bollinger_upper', 'bollinger_lower', 'bollinger_width',
-    'volume_change', 'rolling_volume', 'volume_ratio'
+    'volume_change', 'rolling_volume', 'volume_ratio',
+    'swing_high_20', 'swing_low_20', 'upper_wick_ratio', 'lower_wick_ratio',
+    'volume_absorption', 'bull_trap_score', 'bear_trap_score'
 ]
 
 def build_feature_dataframe(candles: List[Candle]) -> pd.DataFrame:
@@ -50,6 +53,7 @@ def build_feature_dataframe(candles: List[Candle]) -> pd.DataFrame:
     df = calculate_atr(df)
     df = calculate_bollinger_bands(df)
     df = calculate_volume_features(df)
+    df = calculate_anti_trap_features(df)
 
     return df
 

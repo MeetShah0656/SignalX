@@ -6,6 +6,7 @@ from sqlalchemy import select
 from app.database.models import Position, Order, Trade, PaperAccount, SystemEvent
 from app.market.schemas import Quote
 from app.trading.paper_execution import PaperExecutionEngine
+from app.core.config import settings
 from app.core.logging import logger
 
 class PositionManager:
@@ -118,18 +119,30 @@ class PositionManager:
             pos.current_price = current_price
             pos.unrealized_pnl = round(unrealized_pnl, 2)
 
+            # Calculate Gross P&L and Estimated Net P&L (after fees & slippage)
+            if pos.side == "LONG":
+                gross_pnl = (current_price - pos.entry_price) * pos.quantity
+            else:  # SHORT
+                gross_pnl = (pos.entry_price - current_price) * pos.quantity
+
+            estimated_slippage = (current_price * (settings.SLIPPAGE_BPS / 10000.0)) * pos.quantity
+            estimated_fees = abs(gross_pnl) * 0.0003
+            estimated_net_pnl = gross_pnl - estimated_slippage - estimated_fees
+
             # Check exit conditions
             exit_reason = None
-            if pos.side == "LONG":
-                if current_price <= pos.stop_loss:
-                    exit_reason = "STOP_LOSS"
-                elif current_price >= pos.target:
-                    exit_reason = "TARGET_HIT"
-            elif pos.side == "SHORT":
-                if current_price >= pos.stop_loss:
-                    exit_reason = "STOP_LOSS"
-                elif current_price <= pos.target:
-                    exit_reason = "TARGET_HIT"
+            if estimated_net_pnl >= (settings.SCALP_PROFIT_PER_UNIT * pos.quantity):
+                exit_reason = "MIN_PROFIT_TARGET (+₹50/Unit)"
+            elif pos.side == "LONG" and current_price >= pos.target:
+                exit_reason = "TARGET_HIT"
+            elif pos.side == "SHORT" and current_price <= pos.target:
+                exit_reason = "TARGET_HIT"
+
+            # 10-Minute Duration Check: ONLY close if ESTIMATED NET P&L IS STRICTLY POSITIVE (> 0).
+            # If Net P&L is in loss (<= 0), DO NOT CLOSE ON TIMER — position MUST remain open to recover!
+            holding_duration_mins = (datetime.datetime.utcnow() - pos.entry_timestamp).total_seconds() / 60.0
+            if not exit_reason and holding_duration_mins >= settings.MAX_POSITION_DURATION_MINUTES and estimated_net_pnl > 0.0:
+                exit_reason = "TIME_EXPIRED_PROFIT_TAKEN"
 
             if exit_reason:
                 await self.close_position(pos, account, quote, exit_reason)

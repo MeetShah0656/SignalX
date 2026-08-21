@@ -6,7 +6,7 @@ from app.market.provider import MarketDataProvider
 from app.market.schemas import Quote, Candle
 
 class MockMarketDataProvider(MarketDataProvider):
-    def __init__(self, initial_price: float = 24685.40):
+    def __init__(self, initial_price: float = 24078.30):
         self.current_price = initial_price
         self.symbol = "NIFTY 50"
         self.last_update = datetime.datetime.utcnow()

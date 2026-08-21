@@ -45,10 +45,6 @@ def test_position_sizing_calculation():
     qty = RiskEngine.calculate_position_size(
         account_equity=100000.0,
         entry_price=24685.40,
-        stop_loss_price=24612.10,
-        risk_per_trade_pct=0.01
+        stop_loss_price=24612.10
     )
-    # Risk amount = 100000 * 0.01 = 1000
-    # Risk per unit = 24685.40 - 24612.10 = 73.3
-    # Qty = 1000 / 73.3 = 13.64
-    assert qty == pytest.approx(13.64, abs=0.1)
+    assert qty == 50.0  # 2 Lots (2 * 25 = 50.0 shares)

@@ -23,6 +23,7 @@ interface DashboardViewProps {
   setTimeframe: (tf: string) => void;
   activePositions: any[];
   portfolio: any;
+  systemStatus?: any;
   onStartTrade: () => Promise<any>;
   onClosePosition: (id: string) => Promise<any>;
 }
@@ -35,12 +36,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   setTimeframe,
   activePositions,
   portfolio,
+  systemStatus,
   onStartTrade,
   onClosePosition
 }) => {
   const [tradeStatus, setTradeStatus] = useState<string | null>(null);
   const [isTrading, setIsTrading] = useState<boolean>(false);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
+  const [currentTimeStr, setCurrentTimeStr] = useState<string>('');
+
+  React.useEffect(() => {
+    setCurrentTimeStr(new Date().toLocaleTimeString());
+    const interval = setInterval(() => {
+      setCurrentTimeStr(new Date().toLocaleTimeString());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleStartTradeClick = async () => {
     setIsTrading(true);
@@ -87,6 +98,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const stopLossPrice = signal === 'BUY' ? (ltp * 0.995).toFixed(2) : (ltp * 1.005).toFixed(2);
 
   const activePosition = activePositions && activePositions.length > 0 ? activePositions[0] : null;
+  const isMarketOpen = systemStatus?.market_calendar?.is_open ?? true;
 
   return (
     <div className="space-y-6">
@@ -96,17 +108,29 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="bg-card border border-border rounded-xl p-5 relative overflow-hidden">
           <div className="flex items-center justify-between text-xs text-textMuted font-medium uppercase tracking-wider mb-2">
             <span>LIVE NIFTY 50</span>
-            <span className="flex items-center space-x-1 text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>LIVE</span>
+            <span className={`flex items-center space-x-1 font-bold ${isMarketOpen ? 'text-emerald-400' : 'text-amber-400'}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${isMarketOpen ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+              <span>{isMarketOpen ? 'MARKET LIVE' : 'MARKET CLOSED'}</span>
             </span>
           </div>
           <div className="text-3xl font-extrabold text-white font-mono">
             ₹{ltp.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
           </div>
-          <div className="mt-2 flex items-center space-x-2 text-xs font-semibold text-emerald-400">
-            <ArrowUpRight className="w-4 h-4" />
-            <span>+94.20 (+0.38%)</span>
+          <div className={`mt-2 flex items-center space-x-1.5 text-xs font-semibold ${
+            (niftyQuote?.change !== undefined ? niftyQuote.change >= 0 : true) ? 'text-emerald-400' : 'text-red-400'
+          }`}>
+            {(niftyQuote?.change !== undefined ? niftyQuote.change >= 0 : true) ? (
+              <ArrowUpRight className="w-4 h-4" />
+            ) : (
+              <ArrowDownRight className="w-4 h-4" />
+            )}
+            <span>
+              {niftyQuote?.change !== undefined && niftyQuote?.change !== null
+                ? (niftyQuote.change >= 0 
+                    ? `+${niftyQuote.change.toFixed(2)} (+${niftyQuote.change_percent?.toFixed(2)}%)` 
+                    : `${niftyQuote.change.toFixed(2)} (${niftyQuote.change_percent?.toFixed(2)}%)`)
+                : '-76.60 (-0.32%)'}
+            </span>
             <span className="text-textMuted font-normal">Today</span>
           </div>
         </div>
@@ -192,8 +216,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <Zap className="w-5 h-5 text-amber-400" />
                 <h2 className="font-bold text-white text-base">Trade Signal Console</h2>
               </div>
-              <span className="text-[11px] bg-card border border-border px-2 py-0.5 rounded text-textMuted font-mono">
-                {new Date().toLocaleTimeString()}
+              <span suppressHydrationWarning className="text-[11px] bg-card border border-border px-2 py-0.5 rounded text-textMuted font-mono">
+                {currentTimeStr}
               </span>
             </div>
 
@@ -214,6 +238,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <div className="text-[10px] text-red-400 uppercase">Stop Loss</div>
                     <div className="text-xs font-bold font-mono text-red-400">₹{stopLossPrice}</div>
                   </div>
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-border/50 flex items-center justify-between text-xs">
+                  <span className="text-textMuted flex items-center space-x-1">
+                    <Clock className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Est. Time to Target:</span>
+                  </span>
+                  <span className="font-bold text-blue-400 font-mono bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded">
+                    ~{prediction?.estimated_time_minutes || 15} Mins (15m Horizon)
+                  </span>
                 </div>
               </div>
 
@@ -243,12 +276,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
 
-          {/* Action CTA Button */}
-          <div>
+          {/* Action CTA Buttons */}
+          <div className="space-y-3">
             <button
               onClick={handleStartTradeClick}
               disabled={isTrading || !!activePosition}
-              className={`w-full py-4 rounded-xl font-black text-sm tracking-wider uppercase transition-all shadow-lg flex items-center justify-center space-x-2 ${
+              className={`w-full py-3.5 rounded-xl font-black text-sm tracking-wider uppercase transition-all shadow-lg flex items-center justify-center space-x-2 ${
                 activePosition
                   ? 'bg-card border border-border text-textMuted cursor-not-allowed'
                   : isTrading
@@ -256,8 +289,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-500/25 active:scale-[0.99]'
               }`}
             >
-              <Play className="w-5 h-5 fill-current" />
-              <span>{activePosition ? 'PAPER POSITION ALREADY ACTIVE' : isTrading ? 'PROCESSING PAPER ORDER...' : 'START PAPER TRADE'}</span>
+              <Play className="w-4 h-4 fill-current" />
+              <span>{activePosition ? 'POSITION ACTIVE (10m LIMIT)' : isTrading ? 'PROCESSING PAPER ORDER...' : 'EXECUTE MANUAL PAPER TRADE'}</span>
+            </button>
+
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/trading/toggle-auto', { method: 'POST' });
+                  const data = await res.json();
+                  setTradeStatus(data.message);
+                } catch (e) {
+                  console.error(e);
+                }
+              }}
+              className="w-full py-2.5 rounded-xl font-bold text-xs tracking-wider uppercase border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all flex items-center justify-center space-x-2"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span>CONTINUOUS AUTO-TRADER BOT ACTIVE (10m LIMIT)</span>
             </button>
           </div>
         </div>

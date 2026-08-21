@@ -2,17 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 from typing import Dict, Any
 from app.ml.model_registry import model_registry
 from app.ml.trainer import train_and_evaluate_models
-from app.market.live_provider import LiveMarketDataProvider
-from app.market.mock_provider import MockMarketDataProvider
+from app.market.factory import get_market_provider
 from app.features.pipeline import build_feature_dataframe, generate_classification_targets
 from app.core.config import settings
 
 router = APIRouter(prefix="/api/model", tags=["AI Model"])
-
-def get_provider():
-    if settings.MARKET_DATA_PROVIDER == "live" or settings.MARKET_DATA_PROVIDER == "yfinance":
-        return LiveMarketDataProvider(settings.SYMBOL)
-    return MockMarketDataProvider()
 
 @router.get("/status")
 async def get_model_status():
@@ -40,7 +34,7 @@ async def train_model_pipeline(payload: Dict[str, Any] = Body(default={})):
     limit = payload.get("limit", 500)
     timeframe = payload.get("timeframe", "5m")
 
-    provider = get_provider()
+    provider = get_market_provider()
     candles = await provider.get_historical_candles("NIFTY 50", timeframe=timeframe, limit=limit)
 
     if len(candles) < 50:

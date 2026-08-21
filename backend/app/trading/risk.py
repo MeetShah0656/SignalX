@@ -71,18 +71,12 @@ class RiskEngine:
         account_equity: float,
         entry_price: float,
         stop_loss_price: float,
-        risk_per_trade_pct: float = settings.MAX_RISK_PER_TRADE
+        lots: int = settings.DEFAULT_LOTS,
+        lot_size: int = settings.LOT_SIZE
     ) -> float:
         """
-        Calculate virtual NIFTY position quantity based on risk amount.
-        quantity = risk_amount / risk_per_unit
+        Calculate NIFTY paper position quantity capped strictly to 2 Lots (50 shares).
+        Prevents risking all capital on a single trade.
         """
-        risk_amount = account_equity * risk_per_trade_pct
-        risk_per_unit = abs(entry_price - stop_loss_price)
-
-        if risk_per_unit <= 0.1:
-            risk_per_unit = entry_price * 0.005  # Default 0.5% stop loss fallback
-
-        quantity = risk_amount / risk_per_unit
-        # For simulated virtual NIFTY exposure, round to 2 decimals or minimum 1 contract
-        return max(1.0, round(quantity, 2))
+        target_qty = float(lots * lot_size)  # 2 * 25 = 50.0 shares
+        return target_qty

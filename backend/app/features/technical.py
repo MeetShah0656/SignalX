@@ -76,3 +76,53 @@ def calculate_volume_features(df: pd.DataFrame) -> pd.DataFrame:
     df['rolling_volume'] = df['volume'].rolling(window=20).mean()
     df['volume_ratio'] = df['volume'] / (df['rolling_volume'] + 1e-9)
     return df
+
+def calculate_anti_trap_features(df: pd.DataFrame, window: int = 20) -> pd.DataFrame:
+    """
+    Calculate Smart Money & Anti-Retail Liquidity Trap features:
+    - Swing Highs / Lows (Key retail liquidity levels)
+    - Upper & Lower Wick Ratios (Pinbar / Rejection detection)
+    - Volume Absorption (Institutional distribution/accumulation trapping retail)
+    - Bull Trap & Bear Trap composite scores
+    """
+    # Key retail liquidity boundaries (excluding current candle to prevent lookahead)
+    df['swing_high_20'] = df['high'].shift(1).rolling(window=window).max()
+    df['swing_low_20'] = df['low'].shift(1).rolling(window=window).min()
+
+    candle_range = df['high'] - df['low'] + 1e-9
+    real_body = (df['close'] - df['open']).abs()
+
+    df['upper_wick_ratio'] = (df['high'] - df[['open', 'close']].max(axis=1)) / candle_range
+    df['lower_wick_ratio'] = (df[['open', 'close']].min(axis=1) - df['low']) / candle_range
+
+    # Volume Absorption: High relative volume relative to net price spread (real body)
+    body_pct = (real_body / df['close']) + 1e-4
+    df['volume_absorption'] = df['volume_ratio'] / (body_pct * 100)
+
+    # Bull Trap indicator score (0.0 to 1.0)
+    # Triggers when price probes above recent swing high / upper bollinger band but rejected downwards
+    probed_high = df['high'] >= df['swing_high_20']
+    rejected_down = df['close'] < df['open']
+    high_upper_wick = df['upper_wick_ratio'] > 0.4
+    vol_absorbed = df['volume_absorption'] > 1.2
+
+    bull_trap = (probed_high.astype(int) * 0.35 +
+                 rejected_down.astype(int) * 0.25 +
+                 high_upper_wick.astype(int) * 0.25 +
+                 vol_absorbed.astype(int) * 0.15)
+    df['bull_trap_score'] = bull_trap
+
+    # Bear Trap indicator score (0.0 to 1.0)
+    # Triggers when price probes below recent swing low / lower bollinger band but rejected upwards
+    probed_low = df['low'] <= df['swing_low_20']
+    rejected_up = df['close'] > df['open']
+    high_lower_wick = df['lower_wick_ratio'] > 0.4
+
+    bear_trap = (probed_low.astype(int) * 0.35 +
+                 rejected_up.astype(int) * 0.25 +
+                 high_lower_wick.astype(int) * 0.25 +
+                 vol_absorbed.astype(int) * 0.15)
+    df['bear_trap_score'] = bear_trap
+
+    return df
+

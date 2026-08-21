@@ -157,6 +157,7 @@ export default function Home() {
             setTimeframe={setTimeframe}
             activePositions={activePositions}
             portfolio={portfolio}
+            systemStatus={systemStatus}
             onStartTrade={handleStartTrade}
             onClosePosition={handleClosePosition}
           />

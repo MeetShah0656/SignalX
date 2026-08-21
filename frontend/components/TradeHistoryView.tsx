@@ -1,15 +1,25 @@
 'use client';
 
 import React, { useState } from 'react';
-import { History, Search, Filter } from 'lucide-react';
+import { History, Search, Filter, Trash2 } from 'lucide-react';
 
 interface TradeHistoryViewProps {
   trades: any[];
+  onRefresh?: () => void;
 }
 
-export const TradeHistoryView: React.FC<TradeHistoryViewProps> = ({ trades }) => {
+export const TradeHistoryView: React.FC<TradeHistoryViewProps> = ({ trades, onRefresh }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterReason, setFilterReason] = useState('ALL');
+
+  const handleDeleteTrade = async (tradeId: string) => {
+    try {
+      await fetch(`/api/trading/trades/${tradeId}`, { method: 'DELETE' });
+      if (onRefresh) onRefresh();
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const filteredTrades = (trades || []).filter((t) => {
     const matchesSearch = t.symbol?.toLowerCase().includes(searchTerm.toLowerCase()) || t.trade_id?.includes(searchTerm);
@@ -68,7 +78,7 @@ export const TradeHistoryView: React.FC<TradeHistoryViewProps> = ({ trades }) =>
                   <th className="p-3">Trade ID</th>
                   <th className="p-3">Side</th>
                   <th className="p-3">Entry Price</th>
-                  <th className="p-3">Exit Price</th>
+                  <th className="p-3 text-blue-400">Realized Exit Price</th>
                   <th className="p-3">Net P&L</th>
                   <th className="p-3">P&L %</th>
                   <th className="p-3">Duration</th>

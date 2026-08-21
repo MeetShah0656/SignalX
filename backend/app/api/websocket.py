@@ -3,6 +3,8 @@ from typing import List, Dict, Any
 import json
 from app.core.logging import logger
 
+from fastapi.encoders import jsonable_encoder
+
 class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
@@ -21,7 +23,8 @@ class ConnectionManager:
         if not self.active_connections:
             return
             
-        payload = json.dumps({"event": event_type, "data": data})
+        encoded_data = jsonable_encoder({"event": event_type, "data": data})
+        payload = json.dumps(encoded_data)
         disconnected = []
         for connection in self.active_connections:
             try:

@@ -15,6 +15,9 @@ class Quote(BaseModel):
     vwap: Optional[float] = None
     oi: Optional[float] = None
     india_vix: Optional[float] = None
+    prev_close: Optional[float] = None
+    change: Optional[float] = None
+    change_percent: Optional[float] = None
     is_live: bool = True
     provider: str = "mock"
 

@@ -3,8 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database.database import get_db
 from app.database.models import Position, Trade, PaperAccount
-from app.market.live_provider import LiveMarketDataProvider
-from app.market.mock_provider import MockMarketDataProvider
+from app.market.factory import get_market_provider
 from app.features.pipeline import build_feature_dataframe
 from app.trading.signals import SignalEngine
 from app.trading.position_manager import PositionManager
@@ -14,15 +13,10 @@ from app.core.config import settings
 
 router = APIRouter(prefix="/api/trading", tags=["Paper Trading"])
 
-def get_provider():
-    if settings.MARKET_DATA_PROVIDER == "live" or settings.MARKET_DATA_PROVIDER == "yfinance":
-        return LiveMarketDataProvider(settings.SYMBOL)
-    return MockMarketDataProvider()
-
 @router.post("/start")
 async def start_paper_trade(db: AsyncSession = Depends(get_db)):
     account = await get_or_create_paper_account(db)
-    provider = get_provider()
+    provider = get_market_provider()
 
     quote = await provider.get_latest_quote("NIFTY 50")
     candles = await provider.get_historical_candles("NIFTY 50", timeframe="5m", limit=100)
@@ -84,7 +78,7 @@ async def close_position(position_id: str, db: AsyncSession = Depends(get_db)):
     if not pos:
         raise HTTPException(status_code=404, detail="Open position not found.")
 
-    provider = get_provider()
+    provider = get_market_provider()
     quote = await provider.get_latest_quote(pos.symbol)
 
     pos_manager = PositionManager(db)
@@ -96,7 +90,7 @@ async def close_position(position_id: str, db: AsyncSession = Depends(get_db)):
 @router.get("/positions")
 async def get_positions(db: AsyncSession = Depends(get_db)):
     account = await get_or_create_paper_account(db)
-    provider = get_provider()
+    provider = get_market_provider()
     quote = await provider.get_latest_quote("NIFTY 50")
 
     pos_manager = PositionManager(db)
@@ -144,3 +138,29 @@ async def resume_trading(db: AsyncSession = Depends(get_db)):
     account.is_trading_paused = False
     await db.commit()
     return {"status": "ACTIVE", "is_trading_paused": False}
+
+@router.post("/toggle-auto")
+async def toggle_auto_trading():
+    settings.AUTO_TRADING_ENABLED = not settings.AUTO_TRADING_ENABLED
+    return {
+        "auto_trading_enabled": settings.AUTO_TRADING_ENABLED,
+        "message": f"Automated Trading Bot {'ENABLED' if settings.AUTO_TRADING_ENABLED else 'DISABLED'}. (10-minute max position limit active)."
+    }
+
+@router.delete("/trades/{trade_id}")
+async def delete_single_trade(trade_id: str, db: AsyncSession = Depends(get_db)):
+    stmt = select(Trade).where(Trade.id == trade_id)
+    res = await db.execute(stmt)
+    trade = res.scalar_one_or_none()
+    if not trade:
+        return {"status": "ERROR", "message": "Trade not found"}
+    
+    account = await get_or_create_paper_account(db)
+    account.cash_balance -= trade.net_pnl
+    account.equity -= trade.net_pnl
+    account.realized_pnl -= trade.net_pnl
+    account.total_pnl -= trade.net_pnl
+
+    await db.delete(trade)
+    await db.commit()
+    return {"status": "SUCCESS", "message": f"Trade {trade_id} deleted."}
